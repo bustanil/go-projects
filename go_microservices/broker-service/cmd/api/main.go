@@ -14,7 +14,7 @@ type Config struct {
 func main() {
 	app := Config{}
 
-	log.Printf("Starting broker service on port %s", webPort)
+	log.Printf("Starting broker service on port %s\n", webPort)
 
 	// define HTTP server
 	srv := &http.Server{
@@ -22,6 +22,7 @@ func main() {
 		Handler: app.routes(),
 	}
 
+	// start the server
 	err := srv.ListenAndServe()
 
 	if err != nil {
