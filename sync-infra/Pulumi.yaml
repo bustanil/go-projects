@@ -1,0 +1,7 @@
+name: sync-infra
+runtime: go
+description: A cloud based file sharing
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: aws-go
