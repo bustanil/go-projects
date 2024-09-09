@@ -1,8 +1,11 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	_ "github.com/lib/pq"
+	"log"
 )
 
 type Postgres struct {
@@ -18,4 +21,19 @@ func InitDB(username, password, dbname, port string) *Postgres {
 	return &Postgres{
 		DB: db,
 	}
+}
+
+func (p *Postgres) RunWithConn(ctx context.Context, f func(conn *sql.Conn)) {
+	conn, err := p.DB.Conn(ctx)
+	if err != nil {
+		log.Printf("Error getting connection: %v", err)
+	}
+	defer func(conn *sql.Conn) {
+		err := conn.Close()
+		if err != nil {
+			log.Printf("Error closing connection: %v", err)
+		}
+	}(conn)
+
+	f(conn)
 }

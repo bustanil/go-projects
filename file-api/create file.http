@@ -1,0 +1,9 @@
+POST localhost:8080/api/file/metadata HTTP/1.1
+Content-Type: application/json
+
+{
+  "path": "/path/to/file",
+  "size": 1024
+}
+
+###
