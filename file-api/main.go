@@ -1,19 +1,20 @@
 package main
 
 import (
-	"bustanil.com/file-api/db"
-	"bustanil.com/file-api/entity"
-	"bustanil.com/file-api/middleware"
-	"bustanil.com/file-api/router"
-	"database/sql"
-	"encoding/json"
+	"context"
 	"fmt"
-	uuid "github.com/google/uuid"
-	"io"
 	"log"
 	"net/http"
-	"time"
+
+	"bustanil.com/file-api/api/upload"
+	"bustanil.com/file-api/db"
+	panicmiddleware "bustanil.com/file-api/middleware/panic"
+	"bustanil.com/file-api/router"
+	"github.com/aws/aws-sdk-go-v2/config"
+	_ "github.com/lib/pq"
 )
+
+const awsProfileName = "sync"
 
 var (
 	pg *db.Postgres
@@ -24,63 +25,30 @@ func main() {
 
 	pg = db.InitDB("postgres", "postgres", "sync", "5432")
 
+	if err := pg.DB.Ping(); err != nil {
+		log.Panicf("Failed to connect to the database +%v", err)
+		panic(err)
+	}
+
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithSharedConfigProfile(awsProfileName))
+	if err != nil {
+		panic(err)
+	}
+
+	uploadAPI := upload.NewAPI(&cfg, pg)
+
 	server := http.Server{
 		Addr: "localhost:8080",
 		Handler: router.NewRouter().
 			WithMiddlewares(
-				&middleware.HTTPMiddleware{Counter: 0},
-				&middleware.HTTPMiddleware{Counter: 1},
-				&middleware.HTTPMiddleware{Counter: 2},
+				&panicmiddleware.PanicLogger{},
 			).
-			POST("/api/file/metadata", PostFileMetadata).
+			POST("/api/file/metadata", uploadAPI.PostFileMetadata).
 			Build(),
 	}
 
-	err := server.ListenAndServe()
+	err = server.ListenAndServe()
 	if err != nil {
 		panic(err)
 	}
-}
-
-func PostFileMetadata(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		log.Printf("Error reading body: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			log.Printf("Error closing body: %v", err)
-		}
-	}(r.Body)
-
-	m := entity.FileMetadata{}
-	err = json.Unmarshal(body, &m)
-	if err != nil {
-		log.Printf("Error unmarshalling body: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
-	}
-
-	m.Mimetype = "unknown"
-	m.UUID = uuid.NewString()
-	m.CreatedAt = time.Now()
-	m.UpdatedAt = time.Now()
-
-	ctx := r.Context()
-	pg.RunWithConn(ctx, func(conn *sql.Conn) {
-		stmt, err := conn.PrepareContext(ctx, "INSERT INTO file_metadata (uuid, path, mimetype, size, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6)")
-		if err != nil {
-			log.Printf("Error preparing statement: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-
-		_, err = stmt.ExecContext(ctx, m.UUID, m.Path, m.Mimetype, m.Size, m.CreatedAt, m.UpdatedAt)
-		if err != nil {
-			log.Printf("Error inserting: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-	})
-
 }
