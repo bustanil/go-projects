@@ -7,7 +7,10 @@ import (
 	"net/http"
 
 	"bustanil.com/file-api/api/upload"
+	"bustanil.com/file-api/dao"
 	"bustanil.com/file-api/db"
+	"bustanil.com/file-api/external/aws/s3"
+	uploadhandler "bustanil.com/file-api/handler/upload"
 	panicmiddleware "bustanil.com/file-api/middleware/panic"
 	"bustanil.com/file-api/router"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -35,7 +38,11 @@ func main() {
 		panic(err)
 	}
 
-	uploadAPI := upload.NewAPI(&cfg, pg)
+	s3Client := s3.NewClient(&cfg, "sync-bucket")
+	fileMetadataDao := dao.NewDao(pg)
+
+	uploadHandler := uploadhandler.NewHandler(s3Client, fileMetadataDao)
+	uploadAPI := upload.NewAPI(&uploadHandler)
 
 	server := http.Server{
 		Addr: "localhost:8080",

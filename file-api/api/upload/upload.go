@@ -6,10 +6,8 @@ import (
 	"log"
 	"net/http"
 
-	"bustanil.com/file-api/db"
 	"bustanil.com/file-api/dto"
 	"bustanil.com/file-api/handler/upload"
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
@@ -21,10 +19,8 @@ type API struct {
 	handler upload.Handler
 }
 
-func NewAPI(cfg *aws.Config, pg *db.Postgres) *API {
-	return &API{
-		handler: upload.NewHandler(cfg, pg),
-	}
+func NewAPI(handler *upload.Handler) *API {
+	return &API{handler: *handler}
 }
 
 func (a *API) PostFileMetadata(w http.ResponseWriter, r *http.Request) {

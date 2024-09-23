@@ -2,30 +2,28 @@ package upload
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
-	"bustanil.com/file-api/db"
+	"bustanil.com/file-api/dao"
 	"bustanil.com/file-api/dto"
 	"bustanil.com/file-api/entity"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"bustanil.com/file-api/external/aws/s3"
 	"github.com/google/uuid"
 )
 
 type impl struct {
-	awsConfig *aws.Config
-	pg        *db.Postgres
+	s3Client *s3.Client
+	dao      dao.FileMetadataDao
 }
 
 var (
 	bucketName = "sync-bucket"
 )
 
-func NewHandler(cfg *aws.Config, pg *db.Postgres) Handler {
+func NewHandler(s3Client *s3.Client, dao dao.FileMetadataDao) Handler {
 	return &impl{
-		awsConfig: cfg,
-		pg:        pg,
+		s3Client: s3Client,
+		dao:      dao,
 	}
 }
 
@@ -39,37 +37,19 @@ func (i *impl) HandleUpload(ctx context.Context, req *dto.PostFileMetadataReques
 		UpdatedAt: time.Now(),
 	}
 
-	err := i.pg.RunWithConn(ctx, func(conn *sql.Conn) error {
-		stmt, err := conn.PrepareContext(ctx, "INSERT INTO file_metadata (uuid, path, mimetype, size, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6)")
-		if err != nil {
-			return err
-		}
-
-		_, err = stmt.ExecContext(ctx, m.UUID, m.Path, m.Mimetype, m.Size, m.CreatedAt, m.UpdatedAt)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-
+	err := i.dao.Save(ctx, &m)
 	if err != nil {
 		return nil, err
 	}
 
-	c := s3.NewFromConfig(*i.awsConfig)
-	presignClient := s3.NewPresignClient(c)
-	signedURL, err := presignClient.PresignPutObject(ctx, &s3.PutObjectInput{
-		Bucket: &bucketName,
-		Key:    &m.Path,
-	})
+	signedURL, signedHeader, err := i.s3Client.PresignPutObject(ctx, req.Path)
 	if err != nil {
 		return nil, err
 	}
 
 	mdResp := &dto.PostFileMetadataResponse{
-		PresignedURL:     signedURL.URL,
-		PresignedHeaders: signedURL.SignedHeader,
+		PresignedURL:     signedURL,
+		PresignedHeaders: signedHeader,
 	}
 
 	return mdResp, nil
