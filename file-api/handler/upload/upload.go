@@ -2,6 +2,7 @@ package upload
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"bustanil.com/file-api/dao"
@@ -39,12 +40,12 @@ func (i *impl) HandleUpload(ctx context.Context, req *dto.PostFileMetadataReques
 
 	err := i.dao.Save(ctx, &m)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to save metadata: %w", err)
 	}
 
 	signedURL, signedHeader, err := i.s3Client.PresignPutObject(ctx, req.Path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to presign put object: %w", err)
 	}
 
 	mdResp := &dto.PostFileMetadataResponse{

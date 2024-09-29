@@ -33,16 +33,15 @@ func main() {
 		panic(err)
 	}
 
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithSharedConfigProfile(awsProfileName))
+	awsCfg, err := config.LoadDefaultConfig(context.TODO(), config.WithSharedConfigProfile(awsProfileName))
 	if err != nil {
 		panic(err)
 	}
 
-	s3Client := s3.NewClient(&cfg, "sync-bucket")
+	s3Client := s3.NewClient(&awsCfg, "sync-bucket")
 	fileMetadataDao := dao.NewDao(pg)
 
-	uploadHandler := uploadhandler.NewHandler(s3Client, fileMetadataDao)
-	uploadAPI := upload.NewAPI(&uploadHandler)
+	uploadAPI := upload.NewAPI(uploadhandler.NewHandler(s3Client, fileMetadataDao))
 
 	server := http.Server{
 		Addr: "localhost:8080",

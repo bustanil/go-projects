@@ -25,8 +25,7 @@ func InitDB(username, password, dbname, port string) *Postgres {
 func (p *Postgres) RunWithConn(ctx context.Context, f func(conn *sql.Conn) error) error {
 	conn, err := p.DB.Conn(ctx)
 	if err != nil {
-		log.Printf("Error getting connection: %v", err)
-		return err
+		return fmt.Errorf("Error getting connection: %w", err)
 	}
 	defer func(conn *sql.Conn) {
 		if conn != nil {
@@ -37,10 +36,5 @@ func (p *Postgres) RunWithConn(ctx context.Context, f func(conn *sql.Conn) error
 		}
 	}(conn)
 
-	err = f(conn)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return f(conn)
 }

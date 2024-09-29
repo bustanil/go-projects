@@ -19,8 +19,8 @@ type API struct {
 	handler upload.Handler
 }
 
-func NewAPI(handler *upload.Handler) *API {
-	return &API{handler: *handler}
+func NewAPI(handler upload.Handler) *API {
+	return &API{handler: handler}
 }
 
 func (a *API) PostFileMetadata(w http.ResponseWriter, r *http.Request) {

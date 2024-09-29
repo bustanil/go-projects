@@ -3,6 +3,7 @@ package dao
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"bustanil.com/file-api/db"
 	"bustanil.com/file-api/entity"
@@ -28,6 +29,7 @@ func (i *impl) Save(ctx context.Context, m *entity.FileMetadata) error {
 		if err != nil {
 			return err
 		}
+		defer stmt.Close()
 
 		_, err = stmt.ExecContext(ctx, m.UUID, m.Path, m.Mimetype, m.Size, m.CreatedAt, m.UpdatedAt)
 		if err != nil {
@@ -36,8 +38,9 @@ func (i *impl) Save(ctx context.Context, m *entity.FileMetadata) error {
 
 		return nil
 	})
+
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to insert: %w", err)
 	}
 
 	return nil
