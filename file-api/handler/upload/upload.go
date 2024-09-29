@@ -38,7 +38,15 @@ func (i *impl) HandleUpload(ctx context.Context, req *dto.PostFileMetadataReques
 		UpdatedAt: time.Now(),
 	}
 
-	err := i.dao.Save(ctx, &m)
+	exist, err := i.dao.FindByPath(ctx, req.Path)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to to find by path: %w", err)
+	}
+	if exist {
+		return nil, fmt.Errorf("path already exists")
+	}
+
+	err = i.dao.Save(ctx, &m)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to save metadata: %w", err)
 	}

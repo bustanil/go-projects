@@ -11,6 +11,7 @@ import (
 
 type FileMetadataDao interface {
 	Save(ctx context.Context, md *entity.FileMetadata) error
+	FindByPath(ctx context.Context, path string) (bool, error)
 }
 
 type impl struct {
@@ -44,4 +45,31 @@ func (i *impl) Save(ctx context.Context, m *entity.FileMetadata) error {
 	}
 
 	return nil
+}
+
+func (i *impl) FindByPath(ctx context.Context, path string) (bool, error) {
+	var exists bool
+
+	err := i.pg.RunWithConn(ctx, func(conn *sql.Conn) error {
+		stmt, err := conn.PrepareContext(ctx, "SELECT 1 FROM file_metadata where path = $1")
+		if err != nil {
+			return err
+		}
+		defer stmt.Close()
+
+		rows, err := stmt.QueryContext(ctx, path)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		exists = rows.Next()
+		return nil
+	})
+
+	if err != nil {
+		return false, fmt.Errorf("file by path error: %w", err)
+	}
+
+	return exists, nil
 }

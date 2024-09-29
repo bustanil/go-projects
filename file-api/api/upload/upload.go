@@ -37,17 +37,20 @@ func (a *API) PostFileMetadata(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error unmarshalling body: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	mdResp, err := a.handler.HandleUpload(r.Context(), mdReq)
 	if err != nil {
 		log.Printf("failed to handle upload %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	json, err := json.Marshal(mdResp)
 	if err != nil {
 		log.Printf("Error serializing request: %+v", err)
+		return
 	}
 
 	w.Write(json)
